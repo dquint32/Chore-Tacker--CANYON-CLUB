@@ -34,16 +34,25 @@ async function initFirebase() {
   const app = appMod.initializeApp(firebaseConfig);
   db = fsMod.getFirestore(app);
   fb = {
-    doc:            fsMod.doc,
-    setDoc:         fsMod.setDoc,
-    serverTimestamp: fsMod.serverTimestamp
+    doc:             fsMod.doc,
+    setDoc:          fsMod.setDoc,
+    updateDoc:       fsMod.updateDoc,
+    deleteDoc:       fsMod.deleteDoc,
+    serverTimestamp: fsMod.serverTimestamp,
+    collection:      fsMod.collection,
+    query:           fsMod.query,
+    where:           fsMod.where,
+    onSnapshot:      fsMod.onSnapshot
   };
   return db;
 }
 
 // Kick off loading in the background — but don't let a failure stop the UI.
-initFirebase().catch((e) =>
-  console.warn("[ChoreTracker] Firebase not ready yet:", e.message));
+// Once ready, start both live listeners (guard grid + manager queue).
+initFirebase()
+  .then(() => { startLiveSync(); startManagerSync(); })
+  .catch((e) =>
+    console.warn("[ChoreTracker] Firebase not ready — running offline:", e.message));
 
 /* ---------------------------------------------------------------------
    2. CHORE DATA — grouped by category.
@@ -131,10 +140,18 @@ function slugify(text) {
     .replace(/(^-|-$)/g, "");
 }
 
+// A stable key identifying a chore regardless of day.
+function choreKey(category, label) {
+  return `${slugify(category)}__${slugify(label)}`;
+}
+
 // Firestore doc id: one document per chore per day.
 function choreDocId(category, label) {
   return `${todayKey()}_${slugify(category)}_${slugify(label)}`;
 }
+
+// Map of choreKey -> row element, so a live update can find the right row.
+const rowIndex = {};
 
 /* ---------------------------------------------------------------------
    5. RENDER — build the accordions and chore rows
@@ -176,13 +193,20 @@ function renderChores() {
       row.className = "chore";
       row.dataset.category = section.category;
       row.dataset.label = label;
+      const key = choreKey(section.category, label);
+      row.dataset.key = key;
+      rowIndex[key] = row;               // register for live updates
       row.innerHTML = `
         <span class="chore__box" aria-hidden="true"></span>
         <span class="chore__label">${label}</span>
         <span class="chore__meta"></span>
       `;
       row.addEventListener("click", () => {
-        if (row.classList.contains("is-done")) return; // already completed
+        if (row.classList.contains("is-approved")) return;   // locked by lead
+        if (row.classList.contains("is-done")) {             // pending → allow undo
+          openUndo(section.category, label, row);
+          return;
+        }
         openModal(section.category, label, row);
       });
       body.appendChild(row);
@@ -191,6 +215,35 @@ function renderChores() {
     acc.appendChild(header);
     acc.appendChild(body);
     choreListEl.appendChild(acc);
+  });
+}
+
+/* ---------------------------------------------------------------------
+   5b. LIVE SYNC — listen to today's completed chores in real time.
+   Every guard's phone updates within ~1s of anyone finishing a chore,
+   and the state is restored on page reload. Prevents double-work.
+--------------------------------------------------------------------- */
+function startLiveSync() {
+  if (!db || !fb.onSnapshot) return;
+
+  const q = fb.query(
+    fb.collection(db, "chores"),
+    fb.where("date", "==", todayKey())
+  );
+
+  fb.onSnapshot(q, (snapshot) => {
+    // Full reconcile: clear every row, then re-apply from current data.
+    // This way undos (deleted docs) and name edits show up correctly.
+    Object.values(rowIndex).forEach(resetRow);
+
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.status !== "completed") return;
+      const row = rowIndex[data.key];
+      if (row) markRowDone(row, data.completed_by, data.require_lead_signoff === false);
+    });
+  }, (err) => {
+    console.warn("[ChoreTracker] Live sync error:", err.message);
   });
 }
 
@@ -392,6 +445,7 @@ modalForm.addEventListener("submit", async (e) => {
       chore:                label,
       category:             category,
       date:                 todayKey(),
+      key:                  choreKey(category, label),  // matches a row for live sync
       status:               "completed",
       completed_by:         guardName,
       signature:            signatureData,   // locked-in signature image
@@ -399,8 +453,8 @@ modalForm.addEventListener("submit", async (e) => {
       require_lead_signoff: true
     });
 
-    // Reflect completion in the UI
-    markRowDone(rowEl, guardName);
+    // Reflect completion immediately (live sync will confirm across devices).
+    markRowDone(rowEl, guardName, false);
 
     statusEl.textContent = "Saved ✓";
     statusEl.className = "modal__status is-ok";
@@ -416,12 +470,27 @@ modalForm.addEventListener("submit", async (e) => {
   }
 });
 
-function markRowDone(rowEl, guardName) {
+function markRowDone(rowEl, guardName, approved) {
   rowEl.classList.add("is-done");
+  rowEl.classList.toggle("is-approved", !!approved);
+  rowEl.dataset.doneBy = guardName || "";
   const box  = rowEl.querySelector(".chore__box");
   const meta = rowEl.querySelector(".chore__meta");
   if (box)  box.innerHTML = "&#10003;";
-  if (meta) meta.textContent = guardName;
+  if (meta) {
+    meta.textContent = approved
+      ? `${guardName} · approved ✓`
+      : `${guardName} · tap to undo`;
+  }
+}
+
+function resetRow(rowEl) {
+  rowEl.classList.remove("is-done", "is-approved");
+  delete rowEl.dataset.doneBy;
+  const box  = rowEl.querySelector(".chore__box");
+  const meta = rowEl.querySelector(".chore__meta");
+  if (box)  box.innerHTML = "";
+  if (meta) meta.textContent = "";
 }
 
 /* ---------------------------------------------------------------------
@@ -431,15 +500,256 @@ const guardView   = document.getElementById("view-guard");
 const managerView = document.getElementById("view-manager");
 const navBtns     = document.querySelectorAll(".nav-btn");
 
+function switchView(view) {
+  navBtns.forEach((b) =>
+    b.classList.toggle("is-active", b.dataset.view === view));
+  guardView.hidden   = view !== "guard";
+  managerView.hidden = view !== "manager";
+}
+
 navBtns.forEach((btn) => {
   btn.addEventListener("click", () => {
-    navBtns.forEach((b) => b.classList.remove("is-active"));
-    btn.classList.add("is-active");
     const view = btn.dataset.view;
-    guardView.hidden   = view !== "guard";
-    managerView.hidden = view !== "manager";
+    // The Sign-Off (manager) view is protected by a PIN until unlocked.
+    if (view === "manager" && !managerUnlocked) {
+      openPin();
+      return;
+    }
+    switchView(view);
   });
 });
+
+/* ---------------------------------------------------------------------
+   8d. PIN GATE — protects the manager Sign-Off view
+   NOTE: this is a lightweight deterrent, not real security (the PIN
+   lives in this file). For a small trusted staff it keeps guards out of
+   the approval screen. Change LEAD_PIN to update it.
+--------------------------------------------------------------------- */
+const LEAD_PIN = "4500";
+let managerUnlocked = false;   // resets on page reload
+
+const pinOverlay = document.getElementById("pin-overlay");
+const pinDotsWrap = document.getElementById("pin-dots");
+const pinDots    = pinOverlay.querySelectorAll(".pin-dot");
+const pinStatus  = document.getElementById("pin-status");
+const pinClose   = document.getElementById("pin-close");
+const keypad     = document.getElementById("keypad");
+let pinEntry = "";
+
+function renderPinDots() {
+  pinDots.forEach((d, i) => d.classList.toggle("is-filled", i < pinEntry.length));
+}
+
+function openPin() {
+  pinEntry = "";
+  renderPinDots();
+  pinStatus.textContent = "";
+  pinStatus.className = "modal__status";
+  pinOverlay.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closePin() {
+  pinOverlay.hidden = true;
+  document.body.style.overflow = "";
+}
+
+function checkPin() {
+  if (pinEntry === LEAD_PIN) {
+    managerUnlocked = true;
+    closePin();
+    switchView("manager");
+  } else {
+    pinStatus.textContent = "Incorrect PIN — try again.";
+    pinStatus.className = "modal__status is-error";
+    pinDotsWrap.classList.add("is-shake");
+    setTimeout(() => {
+      pinDotsWrap.classList.remove("is-shake");
+      pinEntry = "";
+      renderPinDots();
+    }, 400);
+  }
+}
+
+keypad.addEventListener("click", (e) => {
+  const key = e.target.closest(".keypad__key");
+  if (!key) return;
+  if (key.dataset.del) {
+    pinEntry = pinEntry.slice(0, -1);
+    renderPinDots();
+    return;
+  }
+  const digit = key.dataset.d;
+  if (digit == null || pinEntry.length >= 4) return;
+  pinEntry += digit;
+  renderPinDots();
+  if (pinEntry.length === 4) setTimeout(checkPin, 150);
+});
+
+pinClose.addEventListener("click", closePin);
+pinOverlay.addEventListener("click", (e) => {
+  if (e.target === pinOverlay) closePin();
+});
+
+/* ---------------------------------------------------------------------
+   8b. UNDO — reset an accidental / wrong completion
+--------------------------------------------------------------------- */
+const undoOverlay = document.getElementById("undo-overlay");
+const undoMsg     = document.getElementById("undo-msg");
+const undoStatus  = document.getElementById("undo-status");
+const undoConfirm = document.getElementById("undo-confirm");
+const undoCancel  = document.getElementById("undo-cancel");
+const undoClose   = document.getElementById("undo-close");
+
+let activeUndo = null; // { category, label, rowEl }
+
+function openUndo(category, label, rowEl) {
+  activeUndo = { category, label, rowEl };
+  const who = rowEl.dataset.doneBy || "someone";
+  undoMsg.innerHTML =
+    `<strong>${label}</strong> was marked done by <strong>${who}</strong>. ` +
+    `Undo it so the chore is open again?`;
+  undoStatus.textContent = "";
+  undoStatus.className = "modal__status";
+  undoOverlay.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeUndo() {
+  undoOverlay.hidden = true;
+  activeUndo = null;
+  document.body.style.overflow = "";
+}
+
+undoCancel.addEventListener("click", closeUndo);
+undoClose.addEventListener("click", closeUndo);
+undoOverlay.addEventListener("click", (e) => {
+  if (e.target === undoOverlay) closeUndo();
+});
+
+undoConfirm.addEventListener("click", async () => {
+  if (!activeUndo) return;
+  const { category, label } = activeUndo;
+  undoConfirm.disabled = true;
+  undoConfirm.textContent = "Undoing…";
+  try {
+    await initFirebase();
+    await fb.deleteDoc(fb.doc(db, "chores", choreDocId(category, label)));
+    // Live sync will clear the row on every device.
+    closeUndo();
+  } catch (err) {
+    console.error("[ChoreTracker] Undo failed:", err);
+    undoStatus.textContent = "Couldn't undo — check connection and try again.";
+    undoStatus.className = "modal__status is-error";
+  } finally {
+    undoConfirm.disabled = false;
+    undoConfirm.textContent = "Undo";
+  }
+});
+
+/* ---------------------------------------------------------------------
+   8c. MANAGER SIGN-OFF — live queue of chores awaiting approval
+--------------------------------------------------------------------- */
+const signoffList  = document.getElementById("signoff-list");
+const signoffEmpty = document.getElementById("signoff-empty");
+const signoffCount = document.getElementById("signoff-count");
+const leadNameInput = document.getElementById("lead-name");
+
+function startManagerSync() {
+  if (!db || !fb.onSnapshot) return;
+  const q = fb.query(
+    fb.collection(db, "chores"),
+    fb.where("require_lead_signoff", "==", true)
+  );
+  fb.onSnapshot(q, (snapshot) => {
+    const docs = [];
+    snapshot.forEach((d) => docs.push({ id: d.id, ...d.data() }));
+    // newest first (guard against a pending server timestamp = null)
+    docs.sort((a, b) => (b.completed_at?.seconds || 0) - (a.completed_at?.seconds || 0));
+    renderSignoff(docs);
+  }, (err) => {
+    console.warn("[ChoreTracker] Manager sync error:", err.message);
+  });
+}
+
+function fmtTime(ts) {
+  const d = ts?.toDate?.();
+  if (!d) return "just now";
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function renderSignoff(docs) {
+  // Update the badge on the Sign-Off nav button
+  if (docs.length > 0) {
+    signoffCount.textContent = String(docs.length);
+    signoffCount.hidden = false;
+  } else {
+    signoffCount.hidden = true;
+  }
+
+  // Clear old cards (keep the empty-state note element)
+  signoffList.querySelectorAll(".signoff-card").forEach((el) => el.remove());
+
+  if (docs.length === 0) {
+    signoffEmpty.hidden = false;
+    return;
+  }
+  signoffEmpty.hidden = true;
+
+  docs.forEach((d) => {
+    const card = document.createElement("div");
+    card.className = "signoff-card";
+    card.innerHTML = `
+      <p class="signoff-card__chore"></p>
+      <p class="signoff-card__meta"></p>
+      <p class="signoff-card__siglabel">Signature</p>
+      <img class="signoff-card__sig" alt="Signature" />
+      <div class="signoff-card__actions">
+        <button class="btn-reject" type="button">Reject</button>
+        <button class="btn-approve" type="button">Approve</button>
+      </div>
+    `;
+    card.querySelector(".signoff-card__chore").textContent = d.chore || "(chore)";
+    card.querySelector(".signoff-card__meta").innerHTML =
+      `${d.category || ""} &middot; by <strong>${d.completed_by || "?"}</strong> &middot; ${fmtTime(d.completed_at)}`;
+    const img = card.querySelector(".signoff-card__sig");
+    if (d.signature) img.src = d.signature; else img.remove();
+
+    card.querySelector(".btn-approve").addEventListener("click", () => approveChore(d.id));
+    card.querySelector(".btn-reject").addEventListener("click", () => rejectChore(d.id));
+    signoffList.appendChild(card);
+  });
+}
+
+async function approveChore(id) {
+  const lead = (leadNameInput.value || "").trim();
+  if (!lead) {
+    leadNameInput.focus();
+    leadNameInput.style.borderColor = "#ff8b8b";
+    return;
+  }
+  leadNameInput.style.borderColor = "";
+  try {
+    await initFirebase();
+    await fb.updateDoc(fb.doc(db, "chores", id), {
+      require_lead_signoff: false,
+      approved_by: lead,
+      approved_at: fb.serverTimestamp()
+    });
+    // Live sync will drop it from the queue and turn the guard row green.
+  } catch (err) {
+    console.error("[ChoreTracker] Approve failed:", err);
+  }
+}
+
+async function rejectChore(id) {
+  try {
+    await initFirebase();
+    await fb.deleteDoc(fb.doc(db, "chores", id));
+    // Live sync removes the card and frees the chore on the guard grid.
+  } catch (err) {
+    console.error("[ChoreTracker] Reject failed:", err);
+  }
+}
 
 /* ---------------------------------------------------------------------
    9. BOOT
