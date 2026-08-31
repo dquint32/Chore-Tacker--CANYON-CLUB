@@ -31,8 +31,16 @@ async function initFirebase() {
     "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
   const fsMod  = await import(
     "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const authMod = await import(
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
   const app = appMod.initializeApp(firebaseConfig);
   db = fsMod.getFirestore(app);
+
+  // Sign in anonymously so the security rules can require an app session.
+  // (Requires "Anonymous" sign-in to be enabled in Firebase Auth.)
+  const auth = authMod.getAuth(app);
+  await authMod.signInAnonymously(auth);
+
   fb = {
     doc:             fsMod.doc,
     setDoc:          fsMod.setDoc,
