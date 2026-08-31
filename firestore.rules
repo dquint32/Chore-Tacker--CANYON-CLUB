@@ -1,0 +1,87 @@
+rules_version = '2';
+
+// =====================================================================
+// Canyon Club Pool — Chore Tracker · Firestore Security Rules
+//
+// What these rules do:
+//   • Lock ALL access to the single "chores" collection. Every other
+//     path in the database is denied outright.
+//   • Require an app session (anonymous sign-in) for every read/write,
+//     so requests that don't come through the app are rejected.
+//   • Validate the SHAPE of every record: a guard can only create a
+//     properly-formed "completed" chore, and an update can ONLY be the
+//     lead approval step — nobody can quietly rewrite who did a chore,
+//     the signature, or the timestamp.
+//
+// Reminder: this app has no per-user logins, so these rules can't tell
+// one guard from another. They stop malformed data, foreign collections,
+// and unauthenticated API abuse — which is the meaningful "close the
+// open door" step for a small trusted staff.
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers -----------------------------------------------------
+    function str(v, maxLen) {
+      return v is string && v.size() > 0 && v.size() <= maxLen;
+    }
+
+    // A brand-new completion submitted by a guard.
+    function isValidCompletion(d) {
+      return d.keys().hasOnly([
+               'chore','category','date','key','status',
+               'completed_by','signature','completed_at','require_lead_signoff'
+             ])
+          && d.keys().hasAll([
+               'chore','category','date','key','status',
+               'completed_by','signature','completed_at','require_lead_signoff'
+             ])
+          && d.status == 'completed'
+          && d.require_lead_signoff == true
+          && str(d.chore, 200)
+          && str(d.category, 100)
+          && str(d.date, 20)
+          && str(d.key, 200)
+          && str(d.completed_by, 100)
+          && d.signature is string
+          && d.signature.size() <= 800000       // signature image, ~ up to 0.8 MB
+          && d.completed_at is timestamp;
+    }
+
+    // The ONLY allowed update: a lead approving a pending chore.
+    // Everything else about the record must stay exactly the same.
+    function isValidApproval(oldD, newD) {
+      return oldD.require_lead_signoff == true
+          && newD.require_lead_signoff == false
+          && newD.chore        == oldD.chore
+          && newD.category     == oldD.category
+          && newD.date         == oldD.date
+          && newD.key          == oldD.key
+          && newD.status       == oldD.status
+          && newD.completed_by == oldD.completed_by
+          && newD.signature    == oldD.signature
+          && newD.completed_at == oldD.completed_at
+          && str(newD.approved_by, 100)
+          && newD.approved_at is timestamp
+          && newD.keys().hasOnly([
+               'chore','category','date','key','status',
+               'completed_by','signature','completed_at','require_lead_signoff',
+               'approved_by','approved_at'
+             ]);
+    }
+
+    // ---- the chores collection --------------------------------------
+    match /chores/{choreId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null && isValidCompletion(request.resource.data);
+      allow update: if request.auth != null && isValidApproval(resource.data, request.resource.data);
+      allow delete: if request.auth != null;   // guard undo / lead reject
+    }
+
+    // ---- everything else is denied ----------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
