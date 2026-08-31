@@ -12,8 +12,13 @@
   <!-- ============================ HEADER ============================ -->
   <header class="app-header">
     <div class="app-header__inner">
-      <h1 class="logo">Canyon Club Pool</h1>
-      <p class="logo-sub">Daily Chore Tracker</p>
+      <div class="app-header__titles">
+        <h1 class="logo">Canyon Club Pool</h1>
+        <p class="logo-sub">Daily Chore Tracker</p>
+      </div>
+      <button class="help-btn" id="help-btn" type="button" aria-label="Instructions">
+        <span aria-hidden="true">?</span>
+      </button>
     </div>
   </header>
 
@@ -105,6 +110,47 @@
         </button>
         <p class="modal__status" id="modal-status" role="status" aria-live="polite"></p>
       </form>
+    </div>
+  </div>
+
+  <!-- ========================= HELP MODAL ========================= -->
+  <div class="modal-overlay" id="help-overlay" hidden>
+    <div class="modal modal--sheet modal--scroll" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="modal__close" id="help-close" type="button" aria-label="Close">&times;</button>
+      <p class="modal__eyebrow">How to use this app</p>
+      <h3 class="modal__title" id="help-title">Instructions</h3>
+
+      <div class="help-tabs" role="tablist">
+        <button class="help-tab is-active" id="help-tab-guard" type="button" role="tab">For Lifeguards</button>
+        <button class="help-tab" id="help-tab-lead" type="button" role="tab">For Leads</button>
+      </div>
+
+      <!-- Guard instructions -->
+      <div class="help-panel" id="help-panel-guard">
+        <p class="help-lead">Check off a chore the moment you finish it — on the <strong>Home</strong> tab. No login needed.</p>
+        <ol class="help-steps">
+          <li><b>Tap the chore</b> you just finished (find it under Opening, Mid-Day, Closing, or Sometimes).</li>
+          <li><b>Type your name.</b> The next step unlocks once you do.</li>
+          <li><b>Check the box:</b> “I confirm I completed this chore 100%.” This unlocks the signature.</li>
+          <li><b>Sign with your finger</b> in the white box (use Clear to redo).</li>
+          <li><b>Tap Submit.</b> The chore turns amber and shows your name on every phone.</li>
+        </ol>
+        <p class="help-tip"><b>Made a mistake?</b> Tap the amber chore again and choose <b>Undo</b> — it reopens so it can be redone. Green (approved) chores are locked; ask a lead.</p>
+        <p class="help-tip"><b>Already checked off?</b> If a chore is greyed out with a name, it's done — don't redo it.</p>
+      </div>
+
+      <!-- Lead instructions -->
+      <div class="help-panel" id="help-panel-lead" hidden>
+        <p class="help-lead">Review and approve finished chores on the <strong>Sign-Off</strong> tab.</p>
+        <ol class="help-steps">
+          <li><b>Tap the Sign-Off tab.</b> The badge shows how many chores are waiting.</li>
+          <li><b>Enter the lead PIN</b> on the keypad. (Leads only — keep it off the guard floor.)</li>
+          <li><b>Type your name once</b> in “Lead's Name” — it's recorded on each approval.</li>
+          <li><b>Check each card:</b> chore, who did it, the time, and their signature.</li>
+          <li><b>Approve</b> (turns it green &amp; locked) or <b>Reject</b> (removes it and reopens the chore).</li>
+        </ol>
+        <p class="help-tip"><b>How saving works:</b> the app quietly connects to the database on open — no accounts, no passwords for guards. Completions sync to every phone in about a second, and the list resets fresh each day.</p>
+      </div>
     </div>
   </div>
 
