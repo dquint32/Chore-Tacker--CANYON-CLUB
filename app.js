@@ -760,6 +760,41 @@ async function rejectChore(id) {
 }
 
 /* ---------------------------------------------------------------------
+   8e. HELP — in-app instructions for guards & leads
+--------------------------------------------------------------------- */
+const helpBtn      = document.getElementById("help-btn");
+const helpOverlay  = document.getElementById("help-overlay");
+const helpClose    = document.getElementById("help-close");
+const helpTabGuard = document.getElementById("help-tab-guard");
+const helpTabLead  = document.getElementById("help-tab-lead");
+const helpPanelGuard = document.getElementById("help-panel-guard");
+const helpPanelLead  = document.getElementById("help-panel-lead");
+
+function openHelp() {
+  helpOverlay.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeHelp() {
+  helpOverlay.hidden = true;
+  document.body.style.overflow = "";
+}
+function showHelpTab(which) {
+  const guard = which === "guard";
+  helpTabGuard.classList.toggle("is-active", guard);
+  helpTabLead.classList.toggle("is-active", !guard);
+  helpPanelGuard.hidden = !guard;
+  helpPanelLead.hidden  = guard;
+}
+
+helpBtn.addEventListener("click", openHelp);
+helpClose.addEventListener("click", closeHelp);
+helpOverlay.addEventListener("click", (e) => {
+  if (e.target === helpOverlay) closeHelp();
+});
+helpTabGuard.addEventListener("click", () => showHelpTab("guard"));
+helpTabLead.addEventListener("click", () => showHelpTab("lead"));
+
+/* ---------------------------------------------------------------------
    9. BOOT
 --------------------------------------------------------------------- */
 renderChores();
