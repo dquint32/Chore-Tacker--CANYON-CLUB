@@ -45,10 +45,13 @@
       <h2 class="section-heading">Lead Sign-Off</h2>
       <p class="section-sub">Review &amp; approve completed chores.</p>
     </div>
-    <div id="signoff-list" class="chore-list">
-      <!-- TODO: render chores where require_lead_signoff === true,
-           each with a "Verify &amp; Approve" button. -->
-      <p class="placeholder-note">Manager verification screen — coming soon.</p>
+
+    <label class="field-label" for="lead-name">Lead's Name (required to approve)</label>
+    <input class="field-input" id="lead-name" type="text"
+           placeholder="Type your name" autocomplete="off" autocapitalize="words" />
+
+    <div id="signoff-list" class="signoff-list">
+      <p class="placeholder-note" id="signoff-empty">No chores waiting for approval right now.</p>
     </div>
   </section>
 
@@ -61,6 +64,7 @@
     <button class="nav-btn" data-view="manager" type="button">
       <span class="nav-btn__icon" aria-hidden="true">&#10003;</span>
       <span class="nav-btn__label">Sign-Off</span>
+      <span class="nav-badge" id="signoff-count" hidden>0</span>
     </button>
   </nav>
 
@@ -101,6 +105,52 @@
         </button>
         <p class="modal__status" id="modal-status" role="status" aria-live="polite"></p>
       </form>
+    </div>
+  </div>
+
+  <!-- ========================= PIN MODAL ========================== -->
+  <div class="modal-overlay" id="pin-overlay" hidden>
+    <div class="modal modal--compact" role="dialog" aria-modal="true" aria-labelledby="pin-title">
+      <button class="modal__close" id="pin-close" type="button" aria-label="Cancel">&times;</button>
+      <h3 class="modal__title" id="pin-title">Lead Access</h3>
+      <p class="undo-msg">Enter the 4-digit lead PIN to open Sign-Off.</p>
+
+      <div class="pin-dots" id="pin-dots" aria-hidden="true">
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+      </div>
+      <p class="modal__status" id="pin-status" role="status" aria-live="polite"></p>
+
+      <div class="keypad" id="keypad">
+        <button type="button" class="keypad__key" data-d="1">1</button>
+        <button type="button" class="keypad__key" data-d="2">2</button>
+        <button type="button" class="keypad__key" data-d="3">3</button>
+        <button type="button" class="keypad__key" data-d="4">4</button>
+        <button type="button" class="keypad__key" data-d="5">5</button>
+        <button type="button" class="keypad__key" data-d="6">6</button>
+        <button type="button" class="keypad__key" data-d="7">7</button>
+        <button type="button" class="keypad__key" data-d="8">8</button>
+        <button type="button" class="keypad__key" data-d="9">9</button>
+        <span class="keypad__key keypad__key--blank"></span>
+        <button type="button" class="keypad__key" data-d="0">0</button>
+        <button type="button" class="keypad__key keypad__key--del" data-del="1" aria-label="Delete">&#9003;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== UNDO MODAL ========================== -->
+  <div class="modal-overlay" id="undo-overlay" hidden>
+    <div class="modal modal--compact" role="dialog" aria-modal="true" aria-labelledby="undo-title">
+      <button class="modal__close" id="undo-close" type="button" aria-label="Cancel">&times;</button>
+      <h3 class="modal__title" id="undo-title">Undo completion?</h3>
+      <p class="undo-msg" id="undo-msg">This chore will become available again.</p>
+      <div class="undo-actions">
+        <button class="btn-ghost" id="undo-cancel" type="button">Cancel</button>
+        <button class="btn-danger" id="undo-confirm" type="button">Undo</button>
+      </div>
+      <p class="modal__status" id="undo-status" role="status" aria-live="polite"></p>
     </div>
   </div>
 
