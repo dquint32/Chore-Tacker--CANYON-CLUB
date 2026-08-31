@@ -71,10 +71,25 @@ body {
 .app-header__inner {
   min-height: var(--header-h);
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 12px 0;
 }
+.app-header__titles { display: flex; flex-direction: column; }
+.help-btn {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--c-white);
+  font-size: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.help-btn:active { background: rgba(255, 255, 255, 0.18); }
 .logo {
   margin: 0;
   font-size: 1.4rem;
@@ -596,6 +611,78 @@ body {
   color: var(--c-white);
 }
 .btn-ghost:active, .btn-danger:active { transform: scale(0.99); }
+
+/* ===================== HELP MODAL ==================== */
+.modal--scroll {
+  max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.help-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 18px;
+}
+.help-tab {
+  flex: 1;
+  min-height: 44px;
+  border: 1px solid var(--c-line);
+  border-radius: 11px;
+  background: var(--c-charcoal);
+  color: var(--c-gray);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.help-tab.is-active {
+  background: var(--c-blue);
+  border-color: var(--c-blue);
+  color: var(--c-white);
+}
+.help-lead {
+  font-size: 1rem;
+  color: var(--c-white);
+  margin: 0 0 16px;
+  line-height: 1.45;
+}
+.help-steps {
+  margin: 0 0 18px;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: h;
+}
+.help-steps li {
+  counter-increment: h;
+  position: relative;
+  padding: 0 0 14px 40px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--c-gray);
+}
+.help-steps li b { color: var(--c-white); font-weight: 600; }
+.help-steps li::before {
+  content: counter(h);
+  position: absolute;
+  left: 0; top: 0;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--c-blue);
+  color: var(--c-white);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.help-tip {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--c-gray);
+  background: var(--c-charcoal);
+  border-left: 3px solid var(--c-blue);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 0 0 12px;
+}
+.help-tip b { color: var(--c-white); font-weight: 600; }
 
 /* ===================== PIN KEYPAD ==================== */
 .pin-dots {
