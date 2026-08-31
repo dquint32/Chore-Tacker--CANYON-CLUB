@@ -23,7 +23,9 @@
   --c-slate-2:    #24334a;   /* slightly lighter slate for cards/rows */
   --c-line:       rgba(214, 214, 214, 0.14);
 
-  --ok:           #3fbf7f;   /* completed state */
+  --ok:           #3fbf7f;   /* approved state */
+  --amber:        #e6a13a;   /* completed, pending approval */
+  --danger:       #e05a5a;   /* undo / reject */
   --radius:       14px;
   --tap:          56px;      /* minimum touch target height */
   --nav-h:        68px;      /* bottom nav height */
@@ -207,20 +209,32 @@ body {
   color: var(--c-gray);
 }
 
-/* Completed state */
+/* Completed — pending lead approval (amber). Still tappable to undo. */
 .chore.is-done {
-  opacity: 0.6;
-  cursor: default;
+  opacity: 0.8;
 }
 .chore.is-done .chore__box {
-  background: var(--ok);
-  border-color: var(--ok);
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #1b2436;
 }
 .chore.is-done .chore__label {
   text-decoration: line-through;
-  text-decoration-color: rgba(255, 255, 255, 0.5);
+  text-decoration-color: rgba(255, 255, 255, 0.45);
 }
-.chore.is-done .chore__meta { color: var(--ok); }
+.chore.is-done .chore__meta { color: var(--amber); }
+
+/* Approved by lead (green) — locked, not tappable. */
+.chore.is-approved {
+  opacity: 0.6;
+  cursor: default;
+}
+.chore.is-approved .chore__box {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: var(--c-white);
+}
+.chore.is-approved .chore__meta { color: var(--ok); }
 
 /* ====================== BOTTOM NAVIGATION ===================== */
 .bottom-nav {
@@ -256,6 +270,22 @@ body {
 .nav-btn.is-active {
   background: var(--c-blue);
   color: var(--c-white);
+}
+.nav-btn { position: relative; }
+.nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 22%;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--amber);
+  color: #1b2436;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
 }
 
 /* =========================== MODAL =========================== */
@@ -457,13 +487,163 @@ body {
 .modal__status.is-error { color: #ff8b8b; }
 .modal__status.is-ok    { color: var(--ok); }
 
-/* ===================== MANAGER PLACEHOLDER ==================== */
 .placeholder-note {
   padding: 28px 16px;
   text-align: center;
   color: var(--c-gray);
   font-size: 0.95rem;
 }
+
+/* ===================== MANAGER SIGN-OFF ==================== */
+.signoff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.signoff-card {
+  background: var(--c-slate);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.signoff-card__chore {
+  margin: 0 0 2px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--c-white);
+}
+.signoff-card__meta {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  color: var(--c-gray);
+}
+.signoff-card__meta strong { color: var(--c-white); font-weight: 700; }
+
+.signoff-card__siglabel {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--c-blue);
+}
+.signoff-card__sig {
+  display: block;
+  width: 100%;
+  height: 120px;
+  object-fit: contain;
+  background: var(--c-white);
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.signoff-card__actions {
+  display: flex;
+  gap: 10px;
+}
+.btn-approve, .btn-reject {
+  flex: 1;
+  min-height: 50px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.btn-approve { background: var(--ok); color: #10261b; }
+.btn-reject  {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+.btn-approve:active, .btn-reject:active { transform: scale(0.99); }
+.btn-approve:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===================== UNDO MODAL ==================== */
+.modal--compact {
+  border-radius: 20px;
+  max-width: 440px;
+  margin: 0 16px 16px;
+  align-self: center;
+}
+.modal-overlay#undo-overlay { align-items: center; }
+.undo-msg {
+  margin: 0 0 22px;
+  font-size: 0.98rem;
+  line-height: 1.4;
+  color: var(--c-gray);
+}
+.undo-actions {
+  display: flex;
+  gap: 10px;
+}
+.btn-ghost, .btn-danger {
+  flex: 1;
+  min-height: 52px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--c-line);
+  color: var(--c-white);
+}
+.btn-danger {
+  background: var(--danger);
+  border: none;
+  color: var(--c-white);
+}
+.btn-ghost:active, .btn-danger:active { transform: scale(0.99); }
+
+/* ===================== PIN KEYPAD ==================== */
+.pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin: 6px 0 4px;
+}
+.pin-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--c-blue);
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.pin-dot.is-filled { background: var(--c-blue); }
+
+.pin-dots.is-shake { animation: shake 0.35s ease; }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-8px); }
+  40%,80% { transform: translateX(8px); }
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+}
+.keypad__key {
+  min-height: 62px;
+  border: 1px solid var(--c-line);
+  border-radius: 14px;
+  background: var(--c-charcoal);
+  color: var(--c-white);
+  font-size: 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.keypad__key:active { background: #2c3d58; }
+.keypad__key--blank {
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+.keypad__key--del { font-size: 1.3rem; color: var(--c-gray); }
 
 /* ===================== LARGER SCREENS ======================== */
 @media (min-width: 720px) {
