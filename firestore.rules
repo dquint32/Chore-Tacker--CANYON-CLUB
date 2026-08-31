@@ -2,21 +2,6 @@ rules_version = '2';
 
 // =====================================================================
 // Canyon Club Pool — Chore Tracker · Firestore Security Rules
-//
-// What these rules do:
-//   • Lock ALL access to the single "chores" collection. Every other
-//     path in the database is denied outright.
-//   • Require an app session (anonymous sign-in) for every read/write,
-//     so requests that don't come through the app are rejected.
-//   • Validate the SHAPE of every record: a guard can only create a
-//     properly-formed "completed" chore, and an update can ONLY be the
-//     lead approval step — nobody can quietly rewrite who did a chore,
-//     the signature, or the timestamp.
-//
-// Reminder: this app has no per-user logins, so these rules can't tell
-// one guard from another. They stop malformed data, foreign collections,
-// and unauthenticated API abuse — which is the meaningful "close the
-// open door" step for a small trusted staff.
 // =====================================================================
 
 service cloud.firestore {
