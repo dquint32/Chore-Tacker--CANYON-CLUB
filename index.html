@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#182F4D" />
+  <title>Canyon Club Pool · Chore Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============================ HEADER ============================ -->
+  <header class="app-header">
+    <div class="app-header__inner">
+      <h1 class="logo">Canyon Club Pool</h1>
+      <p class="logo-sub">Daily Chore Tracker</p>
+    </div>
+  </header>
+
+  <!-- ============================ MAIN ============================= -->
+  <main class="content" id="view-guard">
+
+    <div class="content__intro">
+      <h2 class="section-heading">Today's Chores</h2>
+      <p class="section-sub" id="today-label">Tap a chore when it's done, then confirm.</p>
+    </div>
+
+    <!-- Chore accordions are rendered here by app.js -->
+    <div id="chore-list" class="chore-list" aria-live="polite"></div>
+
+  </main>
+
+  <!-- ================= MANAGER / LEAD VIEW (PLACEHOLDER) =================
+       Future "Lead Sign-Off" screen. Chores submitted by guards are written
+       with require_lead_signoff: true. The Lead/Manager will open this view
+       to see all completed-but-unverified chores and tap "Verify & Approve",
+       which will set require_lead_signoff: false (and record who approved it).
+
+       This div is intentionally hidden for now (hidden attribute below).
+       Wire up navigation + a Firestore query where(require_lead_signoff == true)
+       when building the manager interface.
+  ==================================================================== -->
+  <section class="content" id="view-manager" hidden>
+    <div class="content__intro">
+      <h2 class="section-heading">Lead Sign-Off</h2>
+      <p class="section-sub">Review &amp; approve completed chores.</p>
+    </div>
+    <div id="signoff-list" class="chore-list">
+      <!-- TODO: render chores where require_lead_signoff === true,
+           each with a "Verify &amp; Approve" button. -->
+      <p class="placeholder-note">Manager verification screen — coming soon.</p>
+    </div>
+  </section>
+
+  <!-- ======================= BOTTOM NAVIGATION ===================== -->
+  <nav class="bottom-nav" aria-label="Primary">
+    <button class="nav-btn is-active" data-view="guard" type="button">
+      <span class="nav-btn__icon" aria-hidden="true">&#9632;</span>
+      <span class="nav-btn__label">Home</span>
+    </button>
+    <button class="nav-btn" data-view="manager" type="button">
+      <span class="nav-btn__icon" aria-hidden="true">&#10003;</span>
+      <span class="nav-btn__label">Sign-Off</span>
+    </button>
+  </nav>
+
+  <!-- ====================== CONFIRMATION MODAL ===================== -->
+  <div class="modal-overlay" id="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal__close" id="modal-close" type="button" aria-label="Cancel">&times;</button>
+
+      <p class="modal__eyebrow" id="modal-category">Opening Chores</p>
+      <h3 class="modal__title" id="modal-title">Chore name</h3>
+
+      <form id="modal-form" novalidate>
+        <!-- STEP 1 · Name -->
+        <label class="field-label" for="guard-name">1 &nbsp;&middot;&nbsp; Lifeguard's Name</label>
+        <input class="field-input" id="guard-name" type="text"
+               placeholder="Type your full name"
+               autocomplete="off" autocapitalize="words" required />
+
+        <!-- STEP 2 · Confirmation check-off -->
+        <label class="field-label">2 &nbsp;&middot;&nbsp; Confirm Completion</label>
+        <label class="confirm-check" id="confirm-label">
+          <input type="checkbox" id="confirm-box" disabled />
+          <span class="confirm-check__text">
+            I confirm I completed this chore 100% to the best of my ability.
+          </span>
+        </label>
+
+        <!-- STEP 3 · Signature (unlocks after the box is checked) -->
+        <label class="field-label" for="sig-pad">3 &nbsp;&middot;&nbsp; Signature</label>
+        <div class="sig-wrap is-locked">
+          <canvas id="sig-pad" class="sig-pad"></canvas>
+          <span class="sig-hint" id="sig-hint">Check the box above, then sign here</span>
+        </div>
+        <button type="button" class="sig-clear" id="sig-clear">Clear signature</button>
+
+        <button class="btn-submit" id="submit-btn" type="submit" disabled>
+          Submit
+        </button>
+        <p class="modal__status" id="modal-status" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- app.js is an ES module so it can import the Firebase v9+ modular SDK -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
